@@ -18,7 +18,7 @@
     <a href="#api">API Reference</a>
   </p>
 
-  [![npm version](https://img.shields.io/npm/v/@keyoku/memory?style=flat-square&label=%40keyoku%2Fmemory)](https://www.npmjs.com/package/@keyoku/memory)
+  [![version](https://img.shields.io/badge/version-2.0.0-6366f1?style=flat-square)](packages/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
   [![CI](https://img.shields.io/github/actions/workflow/status/keyoku-ai/keyoku/ci.yml?style=flat-square&label=CI)](https://github.com/keyoku-ai/keyoku/actions)
   [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=flat-square)](LICENSE)
@@ -45,9 +45,9 @@ This monorepo contains three packages:
 
 | Package | Description | npm |
 |---------|-------------|-----|
-| [`@keyoku/types`](packages/types) | Shared TypeScript type definitions | [![npm](https://img.shields.io/npm/v/@keyoku/types?style=flat-square&label=)](https://www.npmjs.com/package/@keyoku/types) |
-| [`@keyoku/memory`](packages/memory) | HTTP client for keyoku-engine | [![npm](https://img.shields.io/npm/v/@keyoku/memory?style=flat-square&label=)](https://www.npmjs.com/package/@keyoku/memory) |
-| [`@keyoku/openclaw`](packages/openclaw) | OpenClaw plugin for persistent memory | [![npm](https://img.shields.io/npm/v/@keyoku/openclaw?style=flat-square&label=)](https://www.npmjs.com/package/@keyoku/openclaw) |
+| [`@keyoku/types`](packages/types) | Shared TypeScript type definitions | `2.0.0` |
+| [`@keyoku/memory`](packages/memory) | HTTP client for keyoku-engine | `2.0.0` |
+| [`@keyoku/openclaw`](packages/openclaw) | OpenClaw plugin for persistent memory | `2.0.0` |
 
 ## Quick Start
 
