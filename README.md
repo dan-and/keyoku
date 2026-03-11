@@ -42,11 +42,11 @@ Your Agent ──▶ @keyoku/openclaw ──▶ @keyoku/memory ──▶ keyoku-
 
 This monorepo contains three packages:
 
-| Package | Description | npm |
-|---------|-------------|-----|
-| [`@keyoku/types`](packages/types) | Shared TypeScript type definitions | `2.0.0` |
-| [`@keyoku/memory`](packages/memory) | HTTP client for keyoku-engine | `2.0.0` |
-| [`@keyoku/openclaw`](packages/openclaw) | OpenClaw plugin for persistent memory | `2.0.0` |
+| Package | Description | Version |
+|---------|-------------|---------|
+| [`@keyoku/types`](packages/types) | Shared TypeScript type definitions | 2.0.0 |
+| [`@keyoku/memory`](packages/memory) | HTTP client for keyoku-engine | 2.0.0 |
+| [`@keyoku/openclaw`](packages/openclaw) | OpenClaw plugin for persistent memory | 2.0.0 |
 
 ## Quick Start
 
