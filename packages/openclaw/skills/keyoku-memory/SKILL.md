@@ -1,8 +1,6 @@
 ---
 name: keyoku-memory
 description: Persistent memory system — you remember things about users across conversations
-user-invocable: false
-disable-model-invocation: true
 metadata: {"openclaw":{"always":true,"requires":{"config":["keyoku-memory"]}}}
 ---
 
