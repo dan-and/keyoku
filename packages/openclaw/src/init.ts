@@ -434,6 +434,52 @@ function installSkill(): void {
   success(`SKILL.md installed → ${c.dim}~/.openclaw/skills/keyoku-memory/${c.reset}`);
 }
 
+// ── HEARTBEAT.md Installation ────────────────────────────────────────────
+
+/**
+ * Install HEARTBEAT.md to the OpenClaw workspace directory.
+ * Must be done at init time (not at plugin register time) because OpenClaw's
+ * heartbeat system overwrites the file with a default placeholder after plugins register.
+ */
+function installHeartbeatMd(): void {
+  const workspaceDir = join(HOME, '.openclaw', 'workspace');
+  mkdirSync(workspaceDir, { recursive: true });
+  const heartbeatPath = join(workspaceDir, 'HEARTBEAT.md');
+
+  const HEARTBEAT_CONTENT = `# Heartbeat Check
+
+<!-- keyoku-heartbeat-start -->
+## Keyoku Memory Heartbeat
+
+You have been checked in on. Your memory system has reviewed your recent activity and surfaced anything that needs your attention. The signals are injected into your context automatically — look for the <heartbeat-signals> block.
+
+### How to respond
+
+IMPORTANT: If the signals contain \`should_act: true\` or a "Tell the User" section with ANY content, you MUST write a message to the user. Do NOT reply HEARTBEAT_OK in that case. Say something — even one sentence is fine.
+
+1. Read the signals carefully. Check urgency, mode, and should_act.
+2. If \`should_act\` is true — you MUST send a message. Use the "Tell the User" or "Action Brief" section as guidance for what to say. Keep it natural and brief.
+3. If mode is \`act\` — take action immediately. Do what the signal says.
+4. If mode is \`suggest\` and urgency is not \`none\` — surface the suggestion naturally.
+5. ONLY reply HEARTBEAT_OK if \`should_act\` is false AND there is truly nothing in the signals worth mentioning.
+
+Do not repeat old tasks from prior conversations. Only act on what the signals say right now.
+<!-- keyoku-heartbeat-end -->
+`;
+
+  // If file exists and already has keyoku section, skip
+  if (existsSync(heartbeatPath)) {
+    const existing = readFileSync(heartbeatPath, 'utf-8');
+    if (existing.includes('keyoku-heartbeat-start')) {
+      success('HEARTBEAT.md already configured');
+      return;
+    }
+  }
+
+  writeFileSync(heartbeatPath, HEARTBEAT_CONTENT, 'utf-8');
+  success(`HEARTBEAT.md installed → ${c.dim}~/.openclaw/workspace/${c.reset}`);
+}
+
 // ── LLM Provider Setup ──────────────────────────────────────────────────
 
 /**
@@ -795,6 +841,9 @@ export async function init(): Promise<void> {
   // Step 8: SKILL.md
   stepHeader('Install Skill Guide');
   installSkill();
+
+  // Step 8b: HEARTBEAT.md
+  installHeartbeatMd();
 
   // Step 9: Migration
   const memoryMdPath = join(HOME, '.openclaw', 'MEMORY.md');
