@@ -343,7 +343,8 @@ function installPluginFiles(): void {
   // Also handles npm workspace hoisting where deps are in ../../node_modules.
   const siblingDeps = ['@keyoku/memory', '@keyoku/types', '@sinclair/typebox'];
   const searchPaths = [
-    join(packageRoot, '..'),            // npx flat: node_modules/@keyoku/.. = node_modules/
+    join(packageRoot, '..', '..'),      // npx flat: node_modules/@keyoku/openclaw/../.. = node_modules/
+    join(packageRoot, '..'),            // fallback: unscoped package
     join(packageRoot, '..', '..', 'node_modules'), // workspace hoisted
   ];
   for (const dep of siblingDeps) {
