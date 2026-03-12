@@ -124,6 +124,12 @@ export function registerHooks(
       if (isHeartbeat && config.heartbeat) {
         const activitySummary = summarizeRecentActivity(ev.messages ?? []);
 
+        // Detect active conversation: messages array has recent user content
+        const hasUserMessages = Array.isArray(ev.messages) && ev.messages.some((m) => {
+          const msg = m as { role?: string; content?: string };
+          return msg.role === 'user' && msg.content && !msg.content.includes('HEARTBEAT');
+        });
+
         const heartbeatQuery = activitySummary
           || 'important things about this user, recent plans, preferences, and what they care about';
 
@@ -137,6 +143,7 @@ export function registerHooks(
             analyze: true,
             activity_summary: activitySummary || undefined,
             autonomy: config.autonomy,
+            in_conversation: hasUserMessages,
           });
 
           const memories = ctx.relevant_memories ?? [];

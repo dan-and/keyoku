@@ -124,6 +124,9 @@ export interface HeartbeatContextResult {
   knowledge_gaps?: KnowledgeGap[];
   behavioral_patterns?: BehavioralPattern[];
 
+  // Conversation state
+  in_conversation?: boolean;
+
   // v2: Intelligence metadata
   response_rate?: number;
   confluence_score?: number;

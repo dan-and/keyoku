@@ -13,7 +13,7 @@
 
   <p>
     <a href="#get-started">Get Started</a> &bull;
-    <a href="#what-your-agent-gets">What Your Agent Gets</a> &bull;
+    <a href="#why-keyoku">Why Keyoku?</a> &bull;
     <a href="#the-heartbeat">The Heartbeat</a> &bull;
     <a href="#autonomy-levels">Autonomy Levels</a>
   </p>
@@ -27,99 +27,204 @@
 
 <br>
 
+## Get Started
+
+One command. That's it.
+
+```bash
+npx @keyoku/openclaw init
+```
+
+The init script handles everything automatically:
+
+1. **Detects your OpenClaw installation** — finds your `~/.openclaw/openclaw.json` config
+2. **Downloads keyoku-engine** — fetches the right binary for your platform (macOS/Linux, Intel/ARM) from [GitHub Releases](https://github.com/keyoku-ai/keyoku-engine/releases) and installs it to `~/.keyoku/bin/`
+3. **Registers the plugin** — adds `keyoku-memory` to your OpenClaw config and sets it as the active memory slot
+4. **Migrates existing memories** — if you have existing `MEMORY.md` files or vector stores from OpenClaw's built-in memory, it offers to import them into Keyoku so you don't lose anything
+
+After init completes, restart OpenClaw. The plugin auto-starts keyoku-engine and everything is live — auto-recall, auto-capture, heartbeat, all 7 memory tools.
+
+```
+Your Agent ──▶ @keyoku/openclaw ──▶ keyoku-engine ──▶ SQLite + HNSW
+               (plugin)              (local server)     (your machine)
+```
+
+> [!NOTE]
+> All data stays local. keyoku-engine stores everything in SQLite on your machine — no cloud databases, no external API keys for storage. The only external calls are to your LLM provider for memory extraction (configurable).
+
+<details>
+<summary><strong>Manual installation</strong></summary>
+
+<br>
+
+If you prefer to set things up manually:
+
+**1. Install the plugin**
+
+```bash
+openclaw plugins install @keyoku/openclaw --pin
+```
+
+**2. Enable the plugin and set the memory slot**
+
+Edit `~/.openclaw/openclaw.json`:
+
+```json
+{
+  "plugins": {
+    "slots": {
+      "memory": "keyoku-memory"
+    },
+    "entries": {
+      "keyoku-memory": {
+        "enabled": true,
+        "config": {}
+      }
+    }
+  }
+}
+```
+
+**3. Install keyoku-engine**
+
+Download the binary for your platform from [GitHub Releases](https://github.com/keyoku-ai/keyoku-engine/releases) and place it at `~/.keyoku/bin/keyoku`, or build from source:
+
+```bash
+git clone https://github.com/keyoku-ai/keyoku-engine.git
+cd keyoku-engine
+make build
+cp bin/keyoku-server ~/.keyoku/bin/keyoku
+```
+
+**4. Set your LLM API key**
+
+keyoku-engine needs an LLM provider for memory extraction. Set one of:
+
+```bash
+export OPENAI_API_KEY="sk-..."      # OpenAI
+export ANTHROPIC_API_KEY="sk-ant-..." # Anthropic
+export GEMINI_API_KEY="AI..."       # Google Gemini
+```
+
+**5. Restart OpenClaw**
+
+The plugin will auto-start keyoku-engine on port 18900.
+
+</details>
+
+---
+
 ## Why Keyoku?
 
-OpenClaw is powerful out of the box. But its built-in memory and heartbeat have real limits. Keyoku replaces both with something dramatically better.
+OpenClaw already has memory. The built-in default stores facts in `MEMORY.md` with a SQLite search index, and the optional `memory-lancedb` extension adds auto-recall and auto-capture via LanceDB vectors.
 
-### The memory problem
+So why Keyoku?
 
-OpenClaw's default memory is a **flat file** — `MEMORY.md`. Your agent can search it with `memory_search`, but:
+Because **memory storage is the easy part**. The hard part is what happens *after* you store something — and that's where OpenClaw's memory system stops and Keyoku starts.
 
-- **You have to ask.** The agent only looks at memory when it explicitly calls the search tool. If it doesn't think to search, it doesn't remember.
-- **You can't write back.** There's no way for the agent to save new memories during a conversation. Facts are lost when the session ends unless you manually edit the file.
-- **No understanding of meaning.** Search is keyword + vector similarity on text chunks. It doesn't know that "prefers TypeScript" and "likes TS" are the same thing. No deduplication, no conflict detection, no decay.
-- **Limited results.** Capped at 6 snippets, ~700 characters each. If the answer is buried in memory #47, your agent will never find it.
+### What OpenClaw already does well
 
-With Keyoku, memory is **automatic, semantic, and alive**:
+Credit where it's due:
 
-- **Auto-recall** — before every single response, Keyoku searches memory for anything relevant and silently injects it into the prompt. Your agent just *knows* things. No tool call needed.
-- **Auto-capture** — every message pair (what you said + what the agent responded) is analyzed in real-time. Important facts are extracted and stored automatically. No manual edits.
-- **Semantic engine** — Keyoku understands meaning. It deduplicates ("prefers TypeScript" won't be stored twice), detects conflicts (you changed your mind → old memory updated), and decays stale info (unused facts fade so fresh knowledge surfaces first).
-- **No limits** — HNSW vector index with full-text fallback. No capped snippets. The agent gets complete memories with metadata.
+- **Search** — hybrid keyword + vector search across memory files (built-in) or LanceDB vectors (extension)
+- **Auto-recall** — the LanceDB extension can inject up to 3 memories before each prompt
+- **Auto-capture** — the LanceDB extension can extract and store facts after conversations
+- **Session memory** — saves conversation transcripts on `/new` or `/reset`
 
-### The heartbeat problem
+### What's missing
 
-OpenClaw's default heartbeat reads a **static `HEARTBEAT.md` file** every 30 minutes. That's it.
+Even with the LanceDB extension enabled, OpenClaw's memory is **store-and-retrieve**. It saves things and finds them when asked. That's table stakes. Here's what it doesn't do:
 
-- **No data.** The file contains tasks you wrote manually. The agent reads them, but has zero context about *what's actually happening* — no memory awareness, no deadline tracking, no sentiment analysis.
-- **Stateless.** Each heartbeat run is isolated. The agent doesn't remember what it checked last time. It can't track trends or patterns across heartbeats.
-- **Guesswork.** The agent reads "Check for pending approvals" and has to figure out on its own what that means, what to look for, and whether anything is actually pending. Usually it just replies `HEARTBEAT_OK`.
+#### No memory intelligence
+
+- **No deduplication.** "Prefers TypeScript" and "likes TS" get stored as two separate memories. Over time, your memory fills with redundant facts.
+- **No conflict detection.** You changed your mind? Both the old preference and the new one sit in memory. The agent might surface the wrong one.
+- **No decay.** A preference from 6 months ago is treated the same as one from yesterday. Stale information never fades.
+- **Capped results.** Built-in search returns max 6 snippets at ~700 characters each. The LanceDB extension injects 3 memories. If the answer is buried deeper, it's invisible.
+
+#### No proactive heartbeat
+
+This is the big one. OpenClaw's heartbeat reads a **static `HEARTBEAT.md` file** every 30 minutes.
+
+- **No data.** The file contains tasks you wrote manually. The agent has zero context about what's actually happening — no memory awareness, no deadline tracking, no sentiment analysis.
+- **Stateless.** Each heartbeat is isolated. No trends, no patterns, no history across runs.
+- **Guesswork.** The agent reads "Check for pending approvals" and has to figure out on its own what that means. Usually it just replies `HEARTBEAT_OK`.
 - **No autonomy control.** The agent either acts or doesn't. No structured levels of freedom.
 
-With Keyoku, heartbeat is **memory-aware, structured, and intelligent**:
+#### No knowledge graph
 
-- **10 signal categories** scanned simultaneously — scheduled tasks, deadlines, pending work, conflicts, goal progress, session continuity, sentiment trends, relationship alerts, knowledge gaps, and behavioral patterns.
-- **LLM analysis** — when signals are detected, an LLM evaluates the situation and generates a structured action brief with specific recommendations and user-facing messages.
-- **Memory-driven** — the heartbeat doesn't read a file. It queries your agent's actual memory store. If you mentioned a Friday deadline two weeks ago, the heartbeat knows about it.
-- **Three autonomy levels** — `observe` (log only), `suggest` (recommend to user), `act` (execute immediately). You control how much freedom the agent has.
-- **Idle check-ins** — when nothing is urgent, Keyoku notices the silence and triggers personalized check-ins using what it knows about you. Not generic "how are you?" but "Hey, how did that API migration go?"
+OpenClaw stores memories as flat text chunks. It doesn't understand that "Alice" is a person who works at ClientCo and is connected to the Q3 launch plan. No entities, no relationships, no graph traversal.
+
+### What Keyoku adds
+
+Keyoku replaces OpenClaw's memory slot with a **full cognitive engine**:
+
+- **Auto-recall + auto-capture** — like the LanceDB extension, but backed by a purpose-built engine with HNSW vectors, full-text fallback, and no result caps
+- **Three-tier deduplication** — exact hash, semantic similarity (0.95), and near-duplicate merging (0.75). Your memory stays clean.
+- **Conflict detection** — contradictory memories are flagged and resolved automatically
+- **Memory decay** — Ebbinghaus-curve retention with access-frequency reinforcement. Stale facts fade. Fresh knowledge surfaces first.
+- **Knowledge graph** — entities and relationships are extracted automatically. 20 relationship patterns, BFS traversal up to 5 hops, alias tracking.
+- **12 signal heartbeat** — not a file read. 12 SQL-driven checks against your actual memory store, every tick: scheduled tasks, deadlines, pending work, conflicts, goal progress, session continuity, sentiment trends, relationship alerts, knowledge gaps, behavioral patterns, stale monitors, and decaying memories.
+- **LLM analysis** — when signals fire, an LLM evaluates the situation with knowledge graph context and generates structured action briefs
+- **Three autonomy levels** — `observe` (log only), `suggest` (recommend to user), `act` (execute immediately)
+- **Idle check-ins** — personalized nudges based on what it knows you're working on. Not "how are you?" but "Hey, how did that API migration go?"
 
 ### Side-by-side
 
 <table>
 <tr>
 <th width="33%"></th>
-<th width="33%">OpenClaw Default</th>
+<th width="33%">OpenClaw (with LanceDB ext)</th>
 <th width="33%">With Keyoku</th>
 </tr>
 <tr>
 <td><strong>Memory storage</strong></td>
-<td>Flat markdown file (MEMORY.md)</td>
-<td>Semantic engine with SQLite + HNSW vector index</td>
+<td>Markdown files + LanceDB vectors</td>
+<td>SQLite + HNSW vector index + knowledge graph</td>
 </tr>
 <tr>
-<td><strong>Recall</strong></td>
-<td>Manual — agent must call <code>memory_search</code></td>
-<td>Automatic — injected before every prompt</td>
+<td><strong>Auto-recall</strong></td>
+<td>Yes — up to 3 memories injected</td>
+<td>Yes — configurable top-K, full memories with metadata</td>
 </tr>
 <tr>
-<td><strong>Capture</strong></td>
-<td>None — no write API during sessions</td>
-<td>Automatic — every message pair analyzed and stored</td>
+<td><strong>Auto-capture</strong></td>
+<td>Yes — post-conversation extraction</td>
+<td>Yes — real-time per-message extraction with dedup</td>
 </tr>
 <tr>
 <td><strong>Deduplication</strong></td>
-<td>None — same fact stored repeatedly</td>
-<td>Hash + semantic — "likes TS" won't duplicate "prefers TypeScript"</td>
+<td>None</td>
+<td>Three-tier: hash + semantic (0.95) + near-duplicate merge (0.75)</td>
 </tr>
 <tr>
 <td><strong>Conflict detection</strong></td>
-<td>None — contradictions pile up</td>
+<td>None</td>
 <td>Automatic — old fact updated when you change your mind</td>
 </tr>
 <tr>
 <td><strong>Memory decay</strong></td>
-<td>None — stale info treated same as fresh</td>
-<td>Automatic — unused memories fade, recent knowledge surfaces first</td>
+<td>None</td>
+<td>Ebbinghaus curve + access reinforcement</td>
 </tr>
 <tr>
-<td><strong>Search results</strong></td>
-<td>6 snippets, ~700 chars each</td>
-<td>Full memories with metadata, configurable top-K</td>
+<td><strong>Knowledge graph</strong></td>
+<td>None — flat text chunks</td>
+<td>Entities, relationships, aliases, graph traversal</td>
 </tr>
 <tr>
 <td><strong>Heartbeat input</strong></td>
 <td>Static HEARTBEAT.md file</td>
-<td>10 signal categories from actual memory data</td>
+<td>12 SQL-driven signal categories from actual memory</td>
 </tr>
 <tr>
 <td><strong>Heartbeat intelligence</strong></td>
 <td>Agent reads file and guesses</td>
-<td>LLM analysis with structured action briefs</td>
+<td>LLM analysis with knowledge graph context</td>
 </tr>
 <tr>
 <td><strong>Heartbeat state</strong></td>
-<td>Stateless — no memory of previous runs</td>
+<td>Stateless</td>
 <td>Memory-aware — tracks trends, patterns, and history</td>
 </tr>
 <tr>
@@ -138,45 +243,6 @@ With Keyoku, heartbeat is **memory-aware, structured, and intelligent**:
 <td>Private, team, and global memory scopes</td>
 </tr>
 </table>
-
----
-
-## Get Started
-
-### 1. Install the plugin
-
-```bash
-npm install @keyoku/openclaw
-```
-
-### 2. Add it to your OpenClaw config
-
-```typescript
-import keyokuMemory from '@keyoku/openclaw';
-
-const config = {
-  plugins: {
-    'keyoku-memory': keyokuMemory()  // that's it — all features are on by default
-  },
-  slots: {
-    memory: 'keyoku-memory'
-  }
-};
-```
-
-That's all you need. Everything is enabled by default — auto-recall, auto-capture, heartbeat, incremental learning, and all 7 memory tools.
-
-### 3. Make sure keyoku-engine is running
-
-The plugin connects to [**keyoku-engine**](https://github.com/keyoku-ai/keyoku-engine), which runs locally on your machine. It stores everything in SQLite — no cloud databases, no API keys for storage, your data stays on your device.
-
-```
-Your Agent ──▶ @keyoku/openclaw ──▶ keyoku-engine ──▶ SQLite + HNSW
-               (plugin)              (local server)     (your machine)
-```
-
-> [!NOTE]
-> keyoku-engine defaults to `http://localhost:18900`. See the [keyoku-engine repo](https://github.com/keyoku-ai/keyoku-engine) for setup instructions.
 
 ---
 
@@ -330,11 +396,21 @@ The agent receives the signals and **executes recommended actions directly**. If
 
 **Best for:** Power users who want a fully autonomous assistant that handles things on its own.
 
-```typescript
-// Set autonomy in your config
-keyokuMemory({
-  autonomy: 'suggest',  // 'observe' | 'suggest' | 'act'
-})
+Set it in your `openclaw.json` plugin config:
+
+```json
+{
+  "plugins": {
+    "entries": {
+      "keyoku-memory": {
+        "enabled": true,
+        "config": {
+          "autonomy": "suggest"
+        }
+      }
+    }
+  }
+}
 ```
 
 | Level | Agent sees signals | Agent messages user | Agent takes action |
@@ -347,21 +423,27 @@ keyokuMemory({
 
 ## Configuration
 
-Everything works out of the box with defaults. Customize only what you need:
+Everything works out of the box with defaults. Customize only what you need in `~/.openclaw/openclaw.json`:
 
-```typescript
-keyokuMemory({
-  keyokuUrl: 'http://localhost:18900',  // keyoku-engine server URL
-  autoRecall: true,                     // inject memories into every prompt
-  autoCapture: true,                    // extract facts from conversations
-  heartbeat: true,                      // enable proactive heartbeat signals
-  incrementalCapture: true,             // capture per-message (real-time)
-  topK: 5,                              // max memories injected per prompt
-  entityId: 'user-123',                 // memory namespace (default: agent name)
-  agentId: 'agent-1',                   // agent identifier
-  captureMaxChars: 2000,                // max input chars for capture
-  autonomy: 'suggest',                  // 'observe' | 'suggest' | 'act'
-})
+```json
+{
+  "plugins": {
+    "entries": {
+      "keyoku-memory": {
+        "enabled": true,
+        "config": {
+          "keyokuUrl": "http://localhost:18900",
+          "autoRecall": true,
+          "autoCapture": true,
+          "heartbeat": true,
+          "incrementalCapture": true,
+          "topK": 5,
+          "autonomy": "suggest"
+        }
+      }
+    }
+  }
+}
 ```
 
 | Option | Default | What it does |
@@ -464,7 +546,7 @@ Your OpenClaw Assistant
     │    2. Respond — agent replies with full memory awareness
     │    3. Capture — extract facts from the exchange
     │  Every heartbeat tick:
-    │    4. Scan — check all 10 signal categories
+    │    4. Scan — check all 12 signal categories
     │    5. Analyze — LLM evaluates what needs attention
     │    6. Act — agent responds based on autonomy level
     ▼

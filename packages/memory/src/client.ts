@@ -27,10 +27,12 @@ export class KeyokuError extends Error {
 export class KeyokuClient {
   private baseUrl: string;
   private timeout: number;
+  private token?: string;
 
-  constructor(options: { baseUrl?: string; timeout?: number }) {
+  constructor(options: { baseUrl?: string; timeout?: number; token?: string }) {
     this.baseUrl = (options.baseUrl ?? 'http://localhost:18900').replace(/\/$/, '');
     this.timeout = options.timeout ?? 10000;
+    this.token = options.token;
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -41,6 +43,7 @@ export class KeyokuClient {
     try {
       const headers: Record<string, string> = {};
       if (body) headers['Content-Type'] = 'application/json';
+      if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
 
       const res = await fetch(url, {
         method,
@@ -138,6 +141,7 @@ export class KeyokuClient {
     analyze?: boolean;
     activity_summary?: string;
     autonomy?: 'observe' | 'suggest' | 'act';
+    in_conversation?: boolean;
   }): Promise<HeartbeatContextResult> {
     return this.request<HeartbeatContextResult>('POST', '/api/v1/heartbeat/context', {
       entity_id: entityId,
