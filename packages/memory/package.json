@@ -9,7 +9,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@keyoku/types": "1.2.2"
+    "@keyoku/types": "1.2.13"
   },
   "license": "MIT",
   "engines": {
