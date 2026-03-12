@@ -1,6 +1,6 @@
 {
   "name": "@keyoku/openclaw",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "Keyoku memory plugin for OpenClaw — persistent memory, heartbeat enhancement, and scheduling",
   "type": "module",
   "main": "dist/index.js",
@@ -12,7 +12,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@keyoku/memory": "1.2.5",
+    "@keyoku/memory": "1.2.6",
     "@keyoku/types": "1.2.2",
     "@sinclair/typebox": "^0.34.0"
   },

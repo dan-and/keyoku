@@ -142,11 +142,17 @@ async function prompt(question: string): Promise<string> {
   // TTY mode — interactive prompt
   if (!ttyRl) {
     ttyRl = createInterface({ input: process.stdin, output: process.stdout });
+    ttyRl.on('close', () => {
+      // Prevent silent exit if stdin closes unexpectedly
+      ttyRl = null;
+    });
   }
   return new Promise((resolve) => {
     ttyRl!.question(`  ${c.purple}?${c.reset} ${question} `, (answer) => {
       resolve(answer.trim());
     });
+    // If readline closes before answering, resolve with empty string (use default)
+    ttyRl!.once('close', () => resolve(''));
   });
 }
 
@@ -543,16 +549,33 @@ function detectTimezone(): string {
 }
 
 /**
- * Validate an IANA timezone string.
+ * Common IANA timezones grouped by region.
  */
-function isValidTimezone(tz: string): boolean {
-  try {
-    Intl.DateTimeFormat(undefined, { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-}
+const COMMON_TIMEZONES = [
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Anchorage',
+  'Pacific/Honolulu',
+  'America/Toronto',
+  'America/Vancouver',
+  'America/Sao_Paulo',
+  'America/Mexico_City',
+  'Europe/London',
+  'Europe/Paris',
+  'Europe/Berlin',
+  'Europe/Moscow',
+  'Asia/Dubai',
+  'Asia/Kolkata',
+  'Asia/Singapore',
+  'Asia/Shanghai',
+  'Asia/Tokyo',
+  'Asia/Seoul',
+  'Australia/Sydney',
+  'Pacific/Auckland',
+  'UTC',
+];
 
 /**
  * Set up autonomy level — controls how aggressively heartbeat acts on signals.
@@ -579,18 +602,31 @@ async function setupAutonomy(config: OpenClawConfig): Promise<void> {
  * Set up timezone and quiet hours — controls when heartbeats are suppressed.
  */
 async function setupTimezoneAndQuietHours(): Promise<void> {
-  // Auto-detect timezone
+  // Auto-detect timezone and build selection list
   const detected = detectTimezone();
-  let timezone = detected;
 
-  const tzAnswer = await prompt(`Timezone? (detected: ${c.bold}${detected}${c.reset}, Enter to accept):`);
-  if (tzAnswer) {
-    if (isValidTimezone(tzAnswer)) {
-      timezone = tzAnswer;
-    } else {
-      warn(`Invalid timezone "${tzAnswer}" — using detected: ${detected}`);
+  // Build options: put detected first, then common ones (deduped)
+  const tzOptions: Array<{ label: string; value: string; desc?: string }> = [];
+  tzOptions.push({ label: detected, value: detected, desc: 'detected' });
+  for (const tz of COMMON_TIMEZONES) {
+    if (tz !== detected) {
+      tzOptions.push({ label: tz, value: tz });
     }
   }
+
+  // Show numbered list
+  console.log('');
+  for (let i = 0; i < tzOptions.length; i++) {
+    const marker = i === 0 ? `${c.indigo}${c.bold}` : c.gray;
+    const tag = i === 0 ? ` ${c.dim}(default)${c.reset}` : '';
+    const desc = tzOptions[i].desc ? `  ${c.dim}${tzOptions[i].desc}${c.reset}` : '';
+    console.log(`  ${marker}  ${i + 1}) ${tzOptions[i].label}${c.reset}${tag}${desc}`);
+  }
+  console.log('');
+
+  const tzAnswer = await prompt(`Timezone? [1-${tzOptions.length}]:`);
+  const tzIdx = parseInt(tzAnswer, 10) - 1;
+  const timezone = (tzIdx >= 0 && tzIdx < tzOptions.length) ? tzOptions[tzIdx].value : detected;
 
   appendToEnvFile('KEYOKU_QUIET_HOURS_TIMEZONE', timezone);
   success(`Timezone → ${c.bold}${timezone}${c.reset}`);
@@ -735,7 +771,9 @@ export async function init(): Promise<void> {
 
   // Step 4: DB path
   stepHeader('Configure Storage');
-  const dbPath = join(HOME, '.keyoku', 'data', 'keyoku.db');
+  const dbDir = join(HOME, '.keyoku', 'data');
+  mkdirSync(dbDir, { recursive: true });
+  const dbPath = join(dbDir, 'keyoku.db');
   appendToEnvFile('KEYOKU_DB_PATH', dbPath);
   success(`Database → ${c.dim}${dbPath}${c.reset}`);
 
