@@ -123,6 +123,18 @@ export interface HeartbeatContextResult {
   relationship_alerts?: RelationshipAlert[];
   knowledge_gaps?: KnowledgeGap[];
   behavioral_patterns?: BehavioralPattern[];
+
+  // v2: Intelligence metadata
+  response_rate?: number;
+  confluence_score?: number;
+  positive_deltas?: PositiveDelta[];
+  graph_context?: string[];
+}
+
+export interface PositiveDelta {
+  type: string;
+  description: string;
+  entity_id?: string;
 }
 
 export interface MemoryStats {

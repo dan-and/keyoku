@@ -224,13 +224,11 @@ Most memory systems are passive — they store things and retrieve them when ask
 ### How it works
 
 1. **OpenClaw fires a heartbeat tick** (every few minutes by default)
-2. **Keyoku scans all memory signals** — no LLM tokens spent on this initial check
-3. **If something needs attention**, Keyoku runs an LLM analysis to understand the situation and generates an action brief
+2. **Keyoku scans all memory signals** — 12 SQL-driven checks, zero LLM tokens
+3. **If something needs attention**, Keyoku runs an LLM analysis enriched with knowledge graph context and generates an action brief
 4. **The agent receives structured signals** telling it what to do, what to say, and how urgent it is
 
 ### What the heartbeat detects
-
-The heartbeat doesn't just check one thing. It scans across **10 signal categories** simultaneously:
 
 | Signal | What it catches |
 |--------|----------------|
@@ -244,12 +242,32 @@ The heartbeat doesn't just check one thing. It scans across **10 signal categori
 | **Relationship alerts** | People or contacts the user hasn't engaged with in a while |
 | **Knowledge gaps** | Questions the agent couldn't answer — flagged for follow-up |
 | **Behavioral patterns** | Recurring habits or preferences detected over time |
+| **Stale monitors** | Tracked plans that haven't been touched in 24h |
+| **Decaying memories** | Important memories approaching decay threshold |
 
-### Why this is better than a `.md` file
+### The Brain
 
-A `HEARTBEAT.md` file is static. It tells the agent to "check in" but gives it no context, no data, and no idea what's actually going on. The agent has to guess.
+The heartbeat isn't just a signal scanner — it's a decision engine that uses your agent's full cognitive system:
 
-Keyoku's heartbeat **injects real, structured signals** directly into the agent's context:
+- **Combines weak signals.** Five "meh" signals that individually don't matter can combine to trigger action. Your agent doesn't miss things just because no single signal was urgent enough.
+
+- **Learns from silence.** If you ignore nudges, the system notices. Response rates below 30% trigger 3x longer cooldowns. Below 10%, it basically stops bothering you until something critical happens.
+
+- **Won't repeat itself.** Same topic won't come up again just because the underlying memory changed. The brain tracks which *entities* (people, projects, topics) it already brought up.
+
+- **Understands urgency as a gradient.** A deadline in 45 minutes isn't the same as one tomorrow. The closer it gets, the more urgently it's treated — and critical deadlines bypass quiet hours.
+
+- **Notices when things improve.** If a goal goes from "at risk" to "on track," or someone you lost touch with messages again, the brain surfaces it. Agents that only nag feel robotic. Agents that acknowledge progress feel human.
+
+- **Matches your patterns.** If you always do code reviews on Tuesdays, the brain knows. It'll surface relevant plans and memories on the right day instead of generic check-ins.
+
+- **Uses the knowledge graph.** Before asking the LLM what to say, the brain enriches every signal with entity relationships — so the LLM knows that "Alice" is a person who works at ClientCo and is connected to the Q3 launch plan, not just a name in a memory.
+
+### What your agent actually sees
+
+A `HEARTBEAT.md` file is static. It tells the agent to "check in" but gives it no context. The agent has to guess.
+
+Keyoku injects **real, structured signals** directly into the agent's context:
 
 ```
 <heartbeat-signals>
@@ -264,21 +282,29 @@ The user has a project deadline in 2 days and hasn't mentioned it recently.
 Hey — just a heads up, your API migration deadline is this Friday.
 Looks like there are still 3 open tasks. Want me to help prioritize?
 
+## Knowledge Graph Context
+- Alice (person) -[works_at]-> ClientCo (org)
+- API Migration (project) -[assigned_to]-> Alice (person)
+- API Migration (project) -[blocked_by]-> Auth Refactor (project)
+
 ## What You Know
 - User is working on API migration from REST to GraphQL
 - Deadline is Friday March 14th
 - Prefers to tackle hardest tasks first
 - Last mentioned the project 4 days ago
 
+## Positive Changes
+- [goal_improved] "Auth Refactor" moved from at_risk to on_track
+
 Urgency: soon | Mode: suggest
 </heartbeat-signals>
 ```
 
-The agent gets **exactly what it needs** — what's happening, what to do about it, what to say, and the memory context to say it well. No guessing. Compare this to reading a static file that says "check for pending tasks."
+The agent gets what's happening, what to do about it, who's involved, what's improving, and the memory context to say it well.
 
 ### Idle check-ins
 
-If nothing urgent is happening for a while, Keyoku notices the silence. After a few quiet heartbeat ticks, it triggers a friendly check-in — referencing things it knows about you to make the message personal, not generic.
+When nothing is urgent, Keyoku notices the silence. After a few quiet ticks, it triggers a personalized check-in — matched to your behavioral patterns and what it knows you're working on. Not "how are you?" but "Hey, how did that API migration go?"
 
 ---
 

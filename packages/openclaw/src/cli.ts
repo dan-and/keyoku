@@ -3,10 +3,12 @@
  * Registers `memory` command with search, list, stats, clear subcommands.
  */
 
+import { join } from 'node:path';
 import type { KeyokuClient } from '@keyoku/memory';
 import type { PluginApi, PluginLogger } from './types.js';
 import { formatMemoryList } from './context.js';
 import { importMemoryFiles } from './migration.js';
+import { migrateVectorStore, migrateAllVectorStores, discoverVectorDbs } from './migrate-vector-store.js';
 
 // Minimal Commander-like interface for chaining
 interface CommandChain {
@@ -88,6 +90,75 @@ export function registerCli(api: PluginApi, client: KeyokuClient, entityId: stri
           console.log(
             `\nImport complete: ${result.imported} imported, ${result.skipped} skipped, ${result.errors} errors`,
           );
+        });
+      memory
+        .command('migrate')
+        .description('Migrate OpenClaw vector store (SQLite) into Keyoku')
+        .option('--agent-id <id>', 'Agent ID to scope the migration')
+        .option('--sqlite <path>', 'Path to a specific OpenClaw .sqlite file')
+        .option('--include-markdown', 'Also import MEMORY.md and memory/*.md files')
+        .option('--dry-run', 'Show what would be imported without storing')
+        .action(async (opts: unknown) => {
+          const options = opts as {
+            agentId?: string;
+            sqlite?: string;
+            includeMarkdown?: boolean;
+            dryRun?: boolean;
+          };
+
+          const home = process.env.HOME ?? '';
+
+          // Vector store migration
+          if (options.sqlite) {
+            // Migrate a specific SQLite file
+            const result = await migrateVectorStore({
+              client,
+              entityId,
+              sqlitePath: options.sqlite,
+              agentId: options.agentId,
+              dryRun: options.dryRun,
+              logger: console,
+            });
+            console.log(
+              `\nVector migration: ${result.totalChunks} total, ${result.imported} imported, ${result.skipped} skipped, ${result.errors} errors`,
+            );
+          } else {
+            // Auto-discover OpenClaw memory directory
+            const memoryDir = join(home, '.openclaw', 'memory');
+            const dbs = discoverVectorDbs(memoryDir);
+
+            if (dbs.length === 0) {
+              console.log('No OpenClaw vector stores found at ~/.openclaw/memory/*.sqlite');
+            } else {
+              const result = await migrateAllVectorStores({
+                client,
+                entityId,
+                memoryDir,
+                agentId: options.agentId,
+                dryRun: options.dryRun,
+                logger: console,
+              });
+              console.log(
+                `\nVector migration: ${result.totalChunks} total, ${result.imported} imported, ${result.skipped} skipped, ${result.errors} errors`,
+              );
+            }
+          }
+
+          // Optionally also import markdown files
+          if (options.includeMarkdown) {
+            const workspaceDir = join(home, '.openclaw');
+            const mdResult = await importMemoryFiles({
+              client,
+              entityId,
+              workspaceDir,
+              agentId: options.agentId,
+              dryRun: options.dryRun,
+              logger: console,
+            });
+            console.log(
+              `Markdown import: ${mdResult.imported} imported, ${mdResult.skipped} skipped, ${mdResult.errors} errors`,
+            );
+          }
         });
     },
     { commands: ['memory'] },
