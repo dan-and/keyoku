@@ -1,10 +1,8 @@
 name: E2E Tests
 
+# Manual-only — requires API keys that are not available to external contributors.
+# Run via Actions tab → "E2E Tests" → "Run workflow".
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
