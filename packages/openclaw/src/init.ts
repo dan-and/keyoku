@@ -384,6 +384,7 @@ function installPluginFiles(): void {
   const manifest = {
     id: 'keyoku-memory',
     kind: 'memory',
+    skills: ['./skills'],
     configSchema: {
       type: 'object',
       additionalProperties: true,
